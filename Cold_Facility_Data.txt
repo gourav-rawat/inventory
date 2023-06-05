@@ -1,0 +1,9 @@
+Total LOTS which Not Dispatched = 2
+ID:6 | Auction Date:2023-06-04 | Purchase From:C Traders | MarkingID:QWE | Sold To:C Traders | Box: 23 | Auction Rate:54.0
+ID:9 | Auction Date:2023-06-01 | Purchase From:B Traders | MarkingID:QAZ | Sold To:EN Traders | Box: 21 | Auction Rate:44.0
+=========================================================
+Total LOTS which Not Sold = 4
+ID:4 | Auction Date:2023-06-04 | Purchase From:AN Traders | MarkingID:KCM | Sold To: None | Box:10 | Auction Rate:45.0
+ID:10 | Auction Date:2023-06-04 | Purchase From:C Traders | MarkingID:ASD | Sold To: None | Box:23 | Auction Rate:43.0
+ID:11 | Auction Date:2023-06-04 | Purchase From:C Traders | MarkingID:TYU | Sold To: None | Box:34 | Auction Rate:12.0
+ID:12 | Auction Date:2023-06-04 | Purchase From:D Traders | MarkingID:TYG | Sold To: None | Box:34 | Auction Rate:55.0

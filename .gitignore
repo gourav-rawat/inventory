@@ -1,0 +1,16 @@
+/myenv
+/.vscode
+/.idea
+/__pycache__
+/images
+convertToExcel.py
+database.py
+IMS.py
+LICENSE
+product_list.xlsx
+productManager.py
+record.db
+StartApp.py
+test.py
+
+
