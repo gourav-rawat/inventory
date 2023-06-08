@@ -1,11 +1,14 @@
 # from customtkinter import *
 from tkcalendar import DateEntry
-from tkinter import Menu,Tk,Label,Frame,IntVar,StringVar,DoubleVar,Listbox,END,Toplevel
+from tkinter import Menu,Tk,Label,Frame,IntVar,StringVar,DoubleVar,Listbox,END,Toplevel,Scrollbar
 from models import *
 from tkinter import ttk
 from datetime import date
+import openpyxl
+from openpyxl.styles import PatternFill, Alignment
 # import models
 # import win32print
+
 
 root = Tk()
 root.geometry("1000x600")
@@ -125,6 +128,7 @@ def purchaseListSelect(event):
             if(data.Box>0):
                 purchase_info.insert(END,f"{data.Box} Box remains to sold")
             purchase_info.insert(END,f"Purchased from {data1.Name}")
+    
 
     except:
         pass
@@ -178,24 +182,67 @@ def coldListSelect(event):
         data = session.query(Purchase,Sell).filter(Purchase.id==Sell.purchase_id,
                                                    Sell.Dispatched==0,
                                                    Purchase.coldfacility_id==int(id))
-        
+        ci = 1
         if(data):
-            all_coldFacility_data.delete(0,END)
-            all_coldFacility_data.insert(END,f"Total LOTS which Not Dispatched = {data.count()}")
+            # all_coldFacility_data.delete(0,END)
+            all_coldFacility_data.delete(*all_coldFacility_data.get_children())
+            # all_coldFacility_data.insert(END,f"Total LOTS which Not Dispatched = {data.count()}")
+
             for item in data:
                 l = str(item).split(' | ')
                 pname = session.query(PartyName).filter(PartyName.id == int(l[2].split(':')[1])).first()
-                all_coldFacility_data.insert(END,f"{l[0].split('(')[1]} | {l[1]} | Purchase From:{pname.Name} | {l[3]} | Sold To:{l[11]} | {l[12]} | {l[5]}")
+
+                # t_insert = "{:^15} | {:^25} | {:^15} | {:^10} | {:^15} | {:^10} | {:^25} | {:^10}"
+                # t_insert = t_insert.format(
+                #     l[1].split(':')[1],
+                #     pname.Name,l[3].split(':')[1],
+                #     l[12].split(': ')[1],
+                #     l[5].split(':')[1],
+                #     l[7].split(':')[1],
+                #     l[11],
+                #     idCold)
+                # all_coldFacility_data.insert(END,t_insert)
+
+                all_coldFacility_data.insert("", 'end', text =f"{ci}",
+                                             values =(
+                    l[1].split(':')[1],
+                    pname.Name,
+                    l[3].split(':')[1],
+                    l[12].split(': ')[1],
+                    l[5].split(':')[1],
+                    l[7].split(':')[1],
+                    l[11],
+                    idCold
+                    ))
+                ci+=1
+                # all_coldFacility_data.insert(END,item)
                 
-            data1 = session.query(Purchase).filter(Purchase.coldfacility_id==int(id),Purchase.Box>0)
-            all_coldFacility_data.insert(END,"=========================================================")
-            all_coldFacility_data.insert(END,f"Total LOTS which Not Sold = {data1.count()}")
-            if(data1):
-                for item in data1:
-                    l = str(item).split(' | ')
-                    pname = session.query(PartyName).filter(PartyName.id == int(l[2].split(':')[1])).first()
-                    all_coldFacility_data.insert(END,f"{l[0]} | {l[1]} | Purchase From:{pname.Name} | {l[3]} | Sold To: None | {l[4]} | {l[5]}")                   
-        
+        data1 = session.query(Purchase).filter(Purchase.coldfacility_id==int(id),Purchase.Box>0)
+        # all_coldFacility_data.insert(END,"=========================================================")
+        # all_coldFacility_data.insert(END,f"Total LOTS which Not Sold = {data1.count()}")
+        if(data1):
+            for item in data1:
+                l = str(item).split(' | ')
+                pname = session.query(PartyName).filter(PartyName.id == int(l[2].split(':')[1])).first()
+                all_coldFacility_data.insert("", 'end', text =f"{ci}",
+                                            values =(
+                    l[1].split(':')[1],
+                    pname.Name,
+                    l[3].split(':')[1],
+                    l[4].split(':')[1],
+                    l[5].split(':')[1],
+                    l[7].split(':')[1],
+                    "None",
+                    l[8].split(':')[1]))
+                ci+=1
+
+                # all_coldFacility_data.insert(END,f"{l[1].split(':')[1]} | Purchase From:{pname.Name} | {l[3]} | Sold To: None | {l[4]} | {l[5]}")                   
+
+        coldFacility_data_scrlbar = ttk.Scrollbar(frame3,orient ="vertical",command = all_coldFacility_data.yview)
+        coldFacility_data_scrlbar.grid(row=1,column=4,rowspan=14,sticky="nsw")
+        all_coldFacility_data.configure(yscrollcommand = coldFacility_data_scrlbar.set)
+
+
     except:
         pass
 
@@ -221,13 +268,10 @@ def partyListSelect(event):
                 all_partyName_data.insert(i,item)
                 i+=1
         if(data1):
-            all_partyName_data.insert(i,f"=========================================")           
             i+=1
             all_partyName_data.insert(i,f"Total Sales {data1.count()}")
             i+=1 
-            print("++++++++++++++++++++++++++++++++++++++++++",data,"+++++++++++++++++++++++")          
             for item in data1:
-                print("*************************************************",item,"*************************")
                 l = str(item).split(' | ')
                 all_partyName_data.insert(i,item)
                 i+=1
@@ -434,7 +478,7 @@ def getPurchase():
     if(all==1):
         data = session.query(Purchase).all()
         purchaseListInsert(data)
-        return
+        
     
     elif(f!=partyNameOptions[0] and m!="" and c!=coldFacilityOptions[0]):
         data = session.query(Purchase).filter(Purchase.AuctionDate>=aFrom,Purchase.AuctionDate<=aTo,
@@ -443,7 +487,7 @@ def getPurchase():
                                               Purchase.Box>0,
                                               Purchase.coldfacility_id==int(c.split(" ")[0]))
         purchaseListInsert(data)
-        return
+       
     
     elif(f!=partyNameOptions[0] and c!=coldFacilityOptions[0]):
         data = session.query(Purchase).filter(Purchase.AuctionDate>=aFrom,Purchase.AuctionDate<=aTo,
@@ -451,7 +495,7 @@ def getPurchase():
                                               Purchase.Box>0,
                                               Purchase.coldfacility_id==int(c.split(" ")[0]))
         purchaseListInsert(data)
-        return
+       
     
     elif(m!="" and c!=coldFacilityOptions[0]):
         data = session.query(Purchase).filter(Purchase.AuctionDate>=aFrom,Purchase.AuctionDate<=aTo,
@@ -459,7 +503,7 @@ def getPurchase():
                                               Purchase.Box>0,
                                               Purchase.coldfacility_id==int(c.split(" ")[0]))
         purchaseListInsert(data)
-        return
+       
     
     elif(f!=coldFacilityOptions[0] and m!=""):
         data = session.query(Purchase).filter(Purchase.AuctionDate>=aFrom,Purchase.AuctionDate<=aTo,
@@ -467,33 +511,37 @@ def getPurchase():
                                               Purchase.Box>0,
                                               Purchase.FirmName==int(f.split(" ")[0]))
         purchaseListInsert(data)
-        return
+        
     
     elif(f!=coldFacilityOptions[0]):
         data = session.query(Purchase).filter(Purchase.AuctionDate>=aFrom,Purchase.AuctionDate<=aTo,
                                               Purchase.Box>0,
                                               Purchase.FirmName==int(f.split(" ")[0]))
         purchaseListInsert(data)
-        return
+       
     
     elif(m!=""):
         data = session.query(Purchase).filter(Purchase.AuctionDate>=aFrom,Purchase.AuctionDate<=aTo,
                                               Purchase.Box>0,
                                               Purchase.MarkingID==m)
         purchaseListInsert(data)
-        return
+
     elif(c!=coldFacilityOptions[0]):
         data = session.query(Purchase).filter(Purchase.AuctionDate>=aFrom,Purchase.AuctionDate<=aTo,
                                               Purchase.Box>0,
                                               Purchase.coldfacility_id==int(c.split(" ")[0]))
         purchaseListInsert(data)
-        return
+        
 
     else:
         data = session.query(Purchase).filter(Purchase.AuctionDate>=aFrom,Purchase.AuctionDate<=aTo,
                                               Purchase.Box>0)
         purchaseListInsert(data)
-        return
+
+
+    purchase_list_scroll = Scrollbar(frame1,orient='vertical',command=purchaseList.yview)
+    purchase_list_scroll.grid(row=7,column=8,sticky="ens")
+    purchaseList.configure(yscrollcommand=purchase_list_scroll.set)
 
 def salesListInsert(items):
     salesList.delete(0,END)
@@ -652,13 +700,84 @@ def partyListInsert(items):
         partyNameList.insert(i,item)
         i+=1
     
-def convert_to_txt():
-    data = "\n".join(all_coldFacility_data.get(0, END))
-    with open("Cold_Facility_Data.txt", "w") as file:
-        file.write(data)
-    status3["text"] = "Status: Cold Facility Data EXPORTED"
-    status3.config(background='green',foreground='white')
-    status3.after(3000,lambda:status3.config(text="Status:",background='white',foreground='black'))
+def set_row_background_color(sheet, row_index, color):
+    fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
+    for cell in sheet[row_index]:
+        cell.fill = fill
+
+def convert_to_excel():
+    workbook = openpyxl.Workbook()
+    data = session.query(ColdFacility).filter(ColdFacility.id == idCold).first()
+    sheet_name = data.Name
+    workbook.active.title = sheet_name
+    
+    if sheet_name in workbook.sheetnames:
+        sheet = workbook[sheet_name]
+    else:
+        sheet = workbook.create_sheet(sheet_name)
+    sheet.append(["S.No","Auction Date","Purchased From","Marking ID","BOX","Auction Rate","Weight","Sold To","Cold"])        
+
+    sheet.column_dimensions['A'].width = 6
+    sheet.column_dimensions['B'].width = 15
+    sheet.column_dimensions['C'].width = 16
+    sheet.column_dimensions['D'].width = 13
+    sheet.column_dimensions['E'].width = 10
+    sheet.column_dimensions['F'].width = 13
+    sheet.column_dimensions['G'].width = 13
+    sheet.column_dimensions['H'].width = 15
+    sheet.column_dimensions['I'].width = 10
+
+    all_cold = all_coldFacility_data.get_children()
+    for i, item in enumerate(all_cold):
+        values = all_coldFacility_data.item(item)["values"]
+        SNocell = sheet.cell(row=i+2, column=1)
+        SNocell.value = i+1
+        SNocell.alignment = Alignment(horizontal="left")
+
+        for j, value in enumerate(values):
+            cell = sheet.cell(row=i+2, column=j+2)
+            cell.value = value
+            cell.alignment = Alignment(horizontal="left")
+
+    set_row_background_color(sheet, 1, "FFFF00")
+    workbook.save(f"{sheet_name}_data.xlsx")
+
+
+def getreport():
+    c=session.query(ColdFacility).all()
+    report.delete(0,END)
+    for item in c:
+        box_in_cold = session.query(Purchase).filter(Purchase.coldfacility_id == item.id)
+        total_box = 0
+        for lis in box_in_cold:
+            if(lis.sells):
+                full_string = str(lis.sells)
+                dispatch_info = full_string.split(" | ")[5].split(": ")[1][:-1]
+                if(dispatch_info == 'False'):
+                    sold_box = int(full_string.split(" | ")[4].split(": ")[1])
+                    total_box = lis.Box + sold_box
+            else:
+                total_box += lis.Box
+        
+            # total_box = lis.Box + lis.sells
+        report.insert(END,f"Total No of Box in {item.Name} = {total_box}")
+
+    unsold = session.query(Purchase).filter(Purchase.Box > 0)
+    box_unsold = 0
+    for item in unsold:
+        box_unsold += item.Box
+    unsold_box['text'] = f"Total Unsold Box = {box_unsold}"
+
+    sold = session.query(Sell).all()
+    box_sold = 0
+    for item in sold:
+        box_sold += item.Box
+    total_sold_box['text'] = f"Total Sold Box = {box_sold}"
+
+    weight_pen = session.query(Purchase).filter(Purchase.weight < 1)
+    pending_weight['text'] = f"Total Pending weight LOTS = {weight_pen.count()}"
+    
+    
 
 # FRAME NO. 1  ================================================================ 
 # ============================================================================= 
@@ -791,9 +910,10 @@ purchaseFilterBtn.grid(row=6,column=6,sticky="WE",padx=3)
 
 #==========================================================================================
 
-purchaseList = Listbox(frame1,height=5)
+purchaseList = Listbox(frame1,height=8)
 purchaseList.grid(row=7,column=0,sticky="we",columnspan=8,pady=10)
 purchaseList.bind('<<ListboxSelect>>',purchaseListSelect)
+
 
 getPurchase()
 
@@ -806,6 +926,24 @@ status1.grid(row=9,column=0,columnspan=8,sticky="we",pady=10)
 
 purchase_info = Listbox(master=frame1,height=3,fg="red",font=('times new roman',14))
 purchase_info.grid(row=10,column=0,columnspan=8,sticky="we",ipadx=10,ipady=10)
+
+report_frame = ttk.Frame(master=frame1,borderwidth=3,border=5)
+report_frame.grid(row=0,column=9,rowspan=10,columnspan=2,sticky="n",padx=20)
+
+ttk.Label(master=report_frame,text="Report at Glance",font=('arial',24,"bold")).grid(row=1,column=0,sticky="n",padx=10,pady=20)
+unsold_box = ttk.Label(master=report_frame,text="Total Unsold Box = ",font=('arial',14))
+unsold_box.grid(row=6,column=0,sticky="w",pady=5)
+total_sold_box = ttk.Label(master=report_frame,text="Total Sold Box = ",font=('arial',14))
+total_sold_box.grid(row=7,column=0,sticky="w",pady=5)
+pending_weight = ttk.Label(master=report_frame,text="Total Pending weight LOTS = ",font=('arial',14))
+pending_weight.grid(row=8,column=0,sticky="w",pady=5)
+report = Listbox(master=report_frame,height=6,font=('arial',14),relief="flat")
+report.grid(row=2,column=0,sticky="we")
+getreport()
+report_refresh_btn = ttk.Button(master=report_frame,text="Refresh Report",command=getreport)
+report_refresh_btn.grid(row=9,column=0,ipadx=20,ipady=3,pady=10)
+
+
 
 
 # FRAME NO. 2 ==============================================================================
@@ -911,10 +1049,41 @@ status3 = ttk.Label(master=frame3,text="Status: ",anchor="w",font=('times new ro
 status3.config(background='white',foreground='black')
 status3.grid(row=17,column=0,columnspan=5,sticky="we",pady=10)
 
-all_coldFacility_data = Listbox(master=frame3,height=15,width=100,font=('times new roman',12),relief="groove")
-all_coldFacility_data.grid(row=1,column=3,rowspan=15,sticky="we",ipadx=10,ipady=10)
+# label_text_head = "{:^15} | {:^25} | {:^15} | {:^10} | {:^15} | {:^10} | {:^25} | {:^10}"
+# label_text_head = label_text_head.format('Auction Date','Purchased From','Marking ID','BOX','Auction Rate','Weight','Sold To','Cold')
+# ttk.Label(master=frame3,text=label_text_head,font=('times new roman',12)).grid(row=1,column=3,sticky="w")
 
-exportFile = ttk.Button(master=frame3,text="Export",command=convert_to_txt)
+
+# all_coldFacility_data = Listbox(master=frame3,height=15,width=100,font=('times new roman',12),relief="groove")
+# all_coldFacility_data.grid(row=1,column=3,rowspan=14,sticky="we",ipadx=10,ipady=10)
+
+all_coldFacility_data = ttk.Treeview(frame3, selectmode ='browse')
+all_coldFacility_data.grid(row=1,column=3,rowspan=14,sticky='w',ipadx=20)
+
+
+all_coldFacility_data["columns"] = ('1','2','3','4','5','6','7','8')
+
+all_coldFacility_data.column("#0", width= 40, anchor ='se')
+all_coldFacility_data.column("1", width = 90, anchor ='se')
+all_coldFacility_data.column("2", width = 100, anchor ='se')
+all_coldFacility_data.column("3", width = 80, anchor ='se')
+all_coldFacility_data.column("4", width = 50, anchor ='se')
+all_coldFacility_data.column("5", width = 80, anchor ='se')
+all_coldFacility_data.column("6", width = 70, anchor ='se')
+all_coldFacility_data.column("7", width = 90, anchor ='se')
+all_coldFacility_data.column("8", width = 50, anchor ='center')
+
+all_coldFacility_data.heading("#0", text ="S.No")
+all_coldFacility_data.heading("1", text ="Auction Date")
+all_coldFacility_data.heading("2", text ="Purchased From")
+all_coldFacility_data.heading("3", text ="Marking ID")
+all_coldFacility_data.heading("4", text ="BOX")
+all_coldFacility_data.heading("5", text ="Auction Rate")
+all_coldFacility_data.heading("6", text ="Weight")
+all_coldFacility_data.heading("7", text ="Sold To")
+all_coldFacility_data.heading("8", text ="Cold")
+
+exportFile = ttk.Button(master=frame3,text="Export",command=convert_to_excel)
 exportFile.grid(row=16,column=3,sticky="E",pady=10)
 
 
@@ -960,7 +1129,5 @@ status4.grid(row=17,column=0,columnspan=5,sticky="we",pady=10)
 all_partyName_data = Listbox(master=frame4,height=15,width=100,font=('times new roman',12),relief="groove")
 all_partyName_data.grid(row=1,column=3,rowspan=15,sticky="we",ipadx=10,ipady=10)
 
-
 #==================================================================================================
-
 root.mainloop()
