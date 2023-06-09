@@ -1,6 +1,6 @@
 # from customtkinter import *
 from tkcalendar import DateEntry
-from tkinter import Menu,Tk,Label,Frame,IntVar,StringVar,DoubleVar,Listbox,END,Toplevel,Scrollbar
+from tkinter import Menu,Tk,Label,Frame,IntVar,StringVar,DoubleVar,Listbox,END,Toplevel,Scrollbar,font
 from models import *
 from tkinter import ttk
 from datetime import date
@@ -11,7 +11,7 @@ from openpyxl.styles import PatternFill, Alignment
 
 
 root = Tk()
-root.geometry("1000x600")
+root.geometry("1000x800")
 root.state('zoomed')
 root.title("Inventory Management System")
 w = root.winfo_screenmmwidth()
@@ -184,14 +184,20 @@ def coldListSelect(event):
                                                    Purchase.coldfacility_id==int(id))
         ci = 1
         if(data):
+            print(len(data.all()))
+            # for i in data.all():
+            #     print('data    ',i)
             # all_coldFacility_data.delete(0,END)
             all_coldFacility_data.delete(*all_coldFacility_data.get_children())
             # all_coldFacility_data.insert(END,f"Total LOTS which Not Dispatched = {data.count()}")
 
-            for item in data:
-                l = str(item).split(' | ')
+            for i in data.all():
+                print(i)
+                l = str(i).split(' | ')
                 pname = session.query(PartyName).filter(PartyName.id == int(l[2].split(':')[1])).first()
-
+                firmName = "No Name"
+                if pname and pname.Name:
+                    firmName=pname.Name
                 # t_insert = "{:^15} | {:^25} | {:^15} | {:^10} | {:^15} | {:^10} | {:^25} | {:^10}"
                 # t_insert = t_insert.format(
                 #     l[1].split(':')[1],
@@ -206,7 +212,7 @@ def coldListSelect(event):
                 all_coldFacility_data.insert("", 'end', text =f"{ci}",
                                              values =(
                     l[1].split(':')[1],
-                    pname.Name,
+                    firmName,
                     l[3].split(':')[1],
                     l[12].split(': ')[1],
                     l[5].split(':')[1],
@@ -941,17 +947,17 @@ status1.grid(row=9,column=0,columnspan=8,sticky="we",pady=10)
 purchase_info = Listbox(master=frame1,height=3,fg="red",font=('times new roman',14))
 purchase_info.grid(row=10,column=0,columnspan=8,sticky="we",ipadx=10,ipady=10)
 
-report_frame = ttk.Frame(master=frame1,borderwidth=3,border=5)
-report_frame.grid(row=0,column=9,rowspan=10,columnspan=2,sticky="n",padx=20)
+report_frame = ttk.Frame(master=frame1,borderwidth=6,border=5)
+report_frame.grid(row=0,column=9,rowspan=10,columnspan=2,sticky="n",padx=10)
 
-ttk.Label(master=report_frame,text="Report at Glance",font=('arial',24,"bold")).grid(row=1,column=0,sticky="n",padx=10,pady=20)
+ttk.Label(master=report_frame,text="Report at Glance",font=('arial',24,"bold")).grid(row=1,column=0,sticky="nsew",padx=10,pady=20)
 unsold_box = ttk.Label(master=report_frame,text="Total Unsold Box = ",font=('arial',14))
-unsold_box.grid(row=6,column=0,sticky="w",pady=5)
+unsold_box.grid(row=6,column=0,columnspan=9,sticky="nsew",pady=5)
 total_sold_box = ttk.Label(master=report_frame,text="Total Sold Box = ",font=('arial',14))
 total_sold_box.grid(row=7,column=0,sticky="w",pady=5)
 pending_weight = ttk.Label(master=report_frame,text="Total Pending weight LOTS = ",font=('arial',14))
 pending_weight.grid(row=8,column=0,sticky="w",pady=5)
-report = Listbox(master=report_frame,height=6,font=('arial',14),relief="flat")
+report = Listbox(master=report_frame,height=6,font=('arial',14),relief="flat",width=45)
 report.grid(row=2,column=0,sticky="we")
 getreport()
 report_refresh_btn = ttk.Button(master=report_frame,text="Refresh Report",command=getreport)
@@ -968,11 +974,11 @@ frame2 = Frame(master=root,padx=10,pady=10,borderwidth=3,relief="groove")
 
 idSales = IntVar()
 
-Label(frame2,text="All Sales | OR add Filters",font=("times new roman",13),anchor="w",bg="#696562",fg="white").grid(row=0,column=0,sticky="we",columnspan=10,pady=10,ipady=3,ipadx=5)
+Label(frame2,text="All Sales | OR add Filters",font=("times new roman",16),anchor="w",bg="#696562",fg="white").grid(row=0,column=0,sticky="we",columnspan=10,pady=10,ipady=3,ipadx=5)
 
 
 sale_soldToNameLabelFilter = ttk.Label(master=frame2,text="Sold To Name")
-sale_soldToNameLabelFilter.grid(row=1,column=0,sticky="WE")
+sale_soldToNameLabelFilter.grid(row=1,column=0,sticky="NSEW")
 sale_soldToNameFilter = ttk.OptionMenu(frame2,sale_soldToNameVarFilter,defaultPartyOption,*partyNameOptions)
 clear_partyName_option()
 sale_soldToNameFilter.grid(row=2,column=0,sticky="WE",pady=10)
@@ -1001,7 +1007,7 @@ sale_getAllCheckBox.grid(row=2,column=2)
 sale_FilterBtn = ttk.Button(master=frame2,text="Filter",command=getSales)
 sale_FilterBtn.grid(row=2,column=3,sticky="WE")
 
-salesList = Listbox(frame2,height=8,width=150)
+salesList = Listbox(frame2,height=int(h*0.1),width=int(w*0.5),font=font.Font(size=10))
 salesList.grid(row=3,column=0,sticky="we",columnspan=10)
 salesList.bind('<<ListboxSelect>>',salesListSelect)
 
