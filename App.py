@@ -53,19 +53,19 @@ navbar.add_command(label="Party Name", command=party_name)
 
 # Trail screen================================================================
 
-trail =9-int(str(date.today()).split("-")[2])
+# trail =14-int(str(date.today()).split("-")[2])
 
 warn = ttk.Label(master=root,text="",font=("times new roman",14))
 warn.grid(row=1,column=0,columnspan=5,pady=10)
 
-if(trail):
-  warn.config(text=f"{trail} Days Trail period Remaining. Please Purchase Full Version")
-else:
-  warn.config(text="Trail period is OVER. Please Purchase Full Version")
-  navbar.entryconfigure("Purchase",state="disabled")
-  navbar.entryconfigure("Sales",state="disabled")
-  navbar.entryconfigure("Cold Facility",state="disabled")
-  navbar.entryconfigure("Party Name",state="disabled")
+# if(trail):
+#   warn.config(text=f"{trail} Days Trail period Remaining. Please Purchase Full Version")
+# else:
+#   warn.config(text="Trail period is OVER. Please Purchase Full Version")
+#   navbar.entryconfigure("Purchase",state="disabled")
+#   navbar.entryconfigure("Sales",state="disabled")
+#   navbar.entryconfigure("Cold Facility",state="disabled")
+#   navbar.entryconfigure("Party Name",state="disabled")
 
 
 #=============================================================================
@@ -304,24 +304,29 @@ def addPurchase():
 
 def editPurchase():
     if(firmNameVar.get() != "" and markingidPurchase.get() != ""):
-        
-        data = session.query(Purchase).filter(Purchase.id == idPurchase).first()
-        if(data):
-            data.AuctionDate = auctionDateEntry.get_date()
-            data.FirmName=int(firmNameVar.get().split(" | ")[0])
-            data.MarkingID=markingidPurchase.get()
-            data.Box=boxVar.get()
-            data.AuctionRate=float(auctionRateVar.get())
-            data.Rate=float(rateVar.get())
-            data.weight=weightVar.get()
-            data.coldfacility_id=int(coldVar.get().split(" | ")[0])
-            session.commit()
-            clearPurchase()
-            getPurchase()
-            status1["text"] = "Status: Product Edit successfully"
-            status1.config(background='green',foreground='white')
+        try:
+            data = session.query(Purchase).filter(Purchase.id == idPurchase).first()
+            if(data):
+                data.AuctionDate = auctionDateEntry.get_date()
+                data.FirmName=int(firmNameVar.get().split(" | ")[0])
+                data.MarkingID=markingidPurchase.get()
+                data.Box=boxVar.get()
+                data.AuctionRate=float(auctionRateVar.get())
+                data.Rate=float(rateVar.get())
+                data.weight=weightVar.get()
+                if len(coldVar.get().split(" | "))>1:
+                    data.coldfacility_id=int(coldVar.get().split(" | ")[0])
+                session.commit()
+                clearPurchase()
+                getPurchase()
+                status1["text"] = "Status: Product Edit successfully"
+                status1.config(background='green',foreground='white')
+                status1.after(3000,lambda:status1.config(text="Status:",background='white',foreground='black'))
+        except:
+            status1["text"] = "Status: Fill all data, and try again!"
+            status1.config(background='red',foreground='white')
             status1.after(3000,lambda:status1.config(text="Status:",background='white',foreground='black'))
-
+        
 def deletePurchase():
     if(firmNameVar.get() != "" and markingidPurchase.get() != ""):
         data = session.query(Purchase).filter(Purchase.id == idPurchase).first()
@@ -706,42 +711,50 @@ def set_row_background_color(sheet, row_index, color):
         cell.fill = fill
 
 def convert_to_excel():
-    workbook = openpyxl.Workbook()
     data = session.query(ColdFacility).filter(ColdFacility.id == idCold).first()
     sheet_name = data.Name
-    workbook.active.title = sheet_name
-    
-    if sheet_name in workbook.sheetnames:
-        sheet = workbook[sheet_name]
-    else:
-        sheet = workbook.create_sheet(sheet_name)
-    sheet.append(["S.No","Auction Date","Purchased From","Marking ID","BOX","Auction Rate","Weight","Sold To","Cold"])        
+    try:
+        workbook = openpyxl.Workbook()
+        workbook.active.title = sheet_name
+        
+        if sheet_name in workbook.sheetnames:
+            sheet = workbook[sheet_name]
+        else:
+            sheet = workbook.create_sheet(sheet_name)
+        sheet.append(["S.No","Auction Date","Purchased From","Marking ID","BOX","Auction Rate","Weight","Sold To","Cold"])        
 
-    sheet.column_dimensions['A'].width = 6
-    sheet.column_dimensions['B'].width = 15
-    sheet.column_dimensions['C'].width = 16
-    sheet.column_dimensions['D'].width = 13
-    sheet.column_dimensions['E'].width = 10
-    sheet.column_dimensions['F'].width = 13
-    sheet.column_dimensions['G'].width = 13
-    sheet.column_dimensions['H'].width = 15
-    sheet.column_dimensions['I'].width = 10
+        sheet.column_dimensions['A'].width = 6
+        sheet.column_dimensions['B'].width = 15
+        sheet.column_dimensions['C'].width = 16
+        sheet.column_dimensions['D'].width = 13
+        sheet.column_dimensions['E'].width = 10
+        sheet.column_dimensions['F'].width = 13
+        sheet.column_dimensions['G'].width = 13
+        sheet.column_dimensions['H'].width = 15
+        sheet.column_dimensions['I'].width = 10
 
-    all_cold = all_coldFacility_data.get_children()
-    for i, item in enumerate(all_cold):
-        values = all_coldFacility_data.item(item)["values"]
-        SNocell = sheet.cell(row=i+2, column=1)
-        SNocell.value = i+1
-        SNocell.alignment = Alignment(horizontal="left")
+        all_cold = all_coldFacility_data.get_children()
+        for i, item in enumerate(all_cold):
+            values = all_coldFacility_data.item(item)["values"]
+            SNocell = sheet.cell(row=i+2, column=1)
+            SNocell.value = i+1
+            SNocell.alignment = Alignment(horizontal="left")
 
-        for j, value in enumerate(values):
-            cell = sheet.cell(row=i+2, column=j+2)
-            cell.value = value
-            cell.alignment = Alignment(horizontal="left")
+            for j, value in enumerate(values):
+                cell = sheet.cell(row=i+2, column=j+2)
+                cell.value = value
+                cell.alignment = Alignment(horizontal="left")
 
-    set_row_background_color(sheet, 1, "FFFF00")
-    workbook.save(f"{sheet_name}_data.xlsx")
+        set_row_background_color(sheet, 1, "FFFF00")
+        workbook.save(f"{sheet_name}_data.xlsx")
+        status3["text"] = f"Status: Data is exported in {sheet_name}_data.xlsx file."
+        status3.config(background='green',foreground='white')
+        status3.after(3000,lambda:status3.config(text="Status:",background='white',foreground='black'))
 
+    except PermissionError as e:
+        status3["text"] = f"Status: {sheet_name}_data.xlsx file is opened somewhere, close the file to export!"
+        status3.config(background='red',foreground='white')
+        status3.after(3000,lambda:status3.config(text="Status:",background='white',foreground='black'))
 
 def getreport():
     c=session.query(ColdFacility).all()
@@ -835,7 +848,8 @@ auctionRateEntry = ttk.Entry(master=frame1, textvariable=auctionRateVar)
 auctionRateEntry.grid(row=2,column=4,padx=3)
 
 def update_rateVar(*args):
-    rateVar.set(value=round(float(auctionRateVar.get())*1.025,1))
+    print()
+    rateVar.set(value=round(float(auctionRateVar.get())+2.5,1))
 
 rateLabel = ttk.Label(master=frame1,text="Rate")
 rateLabel.grid(row=1,column=5)

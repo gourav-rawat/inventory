@@ -13,4 +13,7 @@ record.db
 StartApp.py
 test.py
 
-
+inventory.db
+/build
+/dist
+*.xlsx
