@@ -20,30 +20,33 @@ style = ttk.Style()
 
 navbar = Menu(root, font=('Arial', 20))
 root.config(menu=navbar)
-rootLable = ttk.Label(master=root,text="Welecome to Inventory Management System | Select from above options",font=("times new roman",20),anchor="center")
-rootLable.grid(row=0,column=0,sticky="we",columnspan=8)
 
 
 # Menu Tab Functions =============================================
 def purchase():
     hideAllFrame()
-    frame1.grid(row=0,column=0,padx=10,pady=10,sticky="WE")
+    frame1.grid(row=0,column=0,padx=10,pady=10,sticky="nsew")
 def sales():
     hideAllFrame()
-    frame2.grid(row=0,column=0,padx=10,pady=10,sticky="WE")
+    frame2.grid(row=0,column=0,padx=10,pady=10,sticky="nsew")
 def cold_facility():
     hideAllFrame()
-    frame3.grid(row=0,column=0,padx=10,pady=10,sticky="WE")
+    frame3.grid(row=0,column=0,padx=10,pady=10,sticky="nsew")
 def party_name():
     hideAllFrame()
-    frame4.grid(row=0,column=0,padx=10,pady=10,sticky="WE")
+    frame4.grid(row=0,column=0,padx=10,pady=10,sticky="nsew")
+def report_screen():
+    hideAllFrame()
+    report_frame.grid(row=0,column=0,padx=10,pady=10,sticky="nsew")
 def hideAllFrame():
-    frame1.grid_forget()
-    frame2.grid_forget()
-    frame3.grid_forget()
-    frame4.grid_forget()
-    rootLable.grid_forget()
+    frame1.grid_remove()
+    frame2.grid_remove()
+    frame3.grid_remove()
+    frame4.grid_remove()
+    report_frame.grid_remove()
+    rootLable.grid_remove()
 
+navbar.add_command(label="Report",command=report_screen)
 navbar.add_command(label="Purchase",command=purchase)
 navbar.add_command(label="Sales", command=sales)
 navbar.add_command(label="Cold Facility", command=cold_facility)
@@ -184,7 +187,7 @@ def coldListSelect(event):
                                                    Purchase.coldfacility_id==int(id))
         ci = 1
         if(data):
-            print(len(data.all()))
+            # print(len(data.all()))
             # for i in data.all():
             #     print('data    ',i)
             # all_coldFacility_data.delete(0,END)
@@ -192,7 +195,7 @@ def coldListSelect(event):
             # all_coldFacility_data.insert(END,f"Total LOTS which Not Dispatched = {data.count()}")
 
             for i in data.all():
-                print(i)
+                # print(i)
                 l = str(i).split(' | ')
                 pname = session.query(PartyName).filter(PartyName.id == int(l[2].split(':')[1])).first()
                 firmName = "No Name"
@@ -223,17 +226,21 @@ def coldListSelect(event):
                 ci+=1
                 # all_coldFacility_data.insert(END,item)
                 
-        data1 = session.query(Purchase).filter(Purchase.coldfacility_id==int(id),Purchase.Box>0)
+        data1 = session.query(Purchase).filter(Purchase.coldfacility_id==id,Purchase.Box>0)
         # all_coldFacility_data.insert(END,"=========================================================")
         # all_coldFacility_data.insert(END,f"Total LOTS which Not Sold = {data1.count()}")
         if(data1):
             for item in data1:
                 l = str(item).split(' | ')
                 pname = session.query(PartyName).filter(PartyName.id == int(l[2].split(':')[1])).first()
+                firmName = "No Name"
+                if pname and pname.Name:
+                    firmName=pname.Name
+
                 all_coldFacility_data.insert("", 'end', text =f"{ci}",
                                             values =(
                     l[1].split(':')[1],
-                    pname.Name,
+                    firmName,
                     l[3].split(':')[1],
                     l[4].split(':')[1],
                     l[5].split(':')[1],
@@ -263,7 +270,7 @@ def partyListSelect(event):
         idParty = int(id)
         partyNameEntry.delete(0,END)
         partyNameEntry.insert(0,n)
-        data1 = session.query(Sell).filter(Sell.SellTo==int(id))
+        data1 = session.query(Sell).filter(Sell.SellTo==text)
         data = session.query(Purchase).filter(Purchase.FirmName==idParty)
         i=2
         if(data):
@@ -569,7 +576,7 @@ def getSales():
     s = sale_soldToNameVarFilter.get()
     m = sale_markingidPurchaseFilter.get()
     all = sale_getAllCheckVar.get()
-    print(s)
+    
     if(all==1):
         data = session.query(Sell).all()
         if(data):
@@ -578,7 +585,7 @@ def getSales():
 
     elif(s!=defaultPartyOption and m!=""):
         data = session.query(Sell,Purchase).filter(Sell.purchase_id == Purchase.id,
-                                                   Sell.SellTo==int(s.split(" ")[0]),
+                                                   Sell.SellTo==s,
                                                    Sell.MarkingID==m)
         if(data):
             salesListInsert(data)      
@@ -586,7 +593,7 @@ def getSales():
     
     elif(s!=defaultPartyOption):
         data = session.query(Sell,Purchase).filter(Sell.purchase_id == Purchase.id,
-                                                   Sell.SellTo==int(s.split(" ")[0]))
+                                                   Sell.SellTo==s)
         if(data):
             salesListInsert(data)      
             return
@@ -766,19 +773,35 @@ def getreport():
     c=session.query(ColdFacility).all()
     report.delete(0,END)
     for item in c:
+        # print("cold id",item.id)
         box_in_cold = session.query(Purchase).filter(Purchase.coldfacility_id == item.id)
         total_box = 0
         for lis in box_in_cold:
-            if(lis.sells):
-                full_string = str(lis.sells)
-                dispatch_info = full_string.split(" | ")[5].split(": ")[1][:-1]
-                if(dispatch_info == 'False'):
-                    sold_box = int(full_string.split(" | ")[4].split(": ")[1])
-                    total_box = lis.Box + sold_box
-            else:
-                total_box += lis.Box
-        
+            # if(lis.sells):
+            #     print("list sells ",lis.sells)
+            #     full_string = str(lis.sells)
+            #     dispatch_info = full_string.split(" | ")[5].split(": ")[1][:-1]
+            #     print("dispatch ",dispatch_info)
+            #     if(dispatch_info == 'False'):
+            #         sold_box = int(full_string.split(" | ")[4].split(": ")[1])
+            #         print("sold box",sold_box)
+            #         total_box = lis.Box + sold_box
+            
+            total_box += lis.Box
+    
             # total_box = lis.Box + lis.sells
+        data = session.query(Purchase,Sell).filter(Purchase.id==Sell.purchase_id,
+                                                   Sell.Dispatched==0,
+                                                   Purchase.coldfacility_id==item.id)
+        # print("data ",data.all())
+        if data:
+            for i in data.all():
+                l = str(i).split(' | ')
+                # print("lllllllll",l)
+                # print("ghhh",int(l[12].split(":")[1]))
+                if int(l[12].split(":")[1]):
+                    total_box += int(l[12].split(":")[1])
+
         report.insert(END,f"Total No of Box in {item.Name} = {total_box}")
 
     unsold = session.query(Purchase).filter(Purchase.Box > 0)
@@ -930,7 +953,7 @@ purchaseFilterBtn.grid(row=6,column=6,sticky="WE",padx=3)
 
 #==========================================================================================
 
-purchaseList = Listbox(frame1,height=8)
+purchaseList = Listbox(frame1,height=int(h*0.06),width=int(w*0.5),font=font.Font(size=10))
 purchaseList.grid(row=7,column=0,sticky="we",columnspan=8,pady=10)
 purchaseList.bind('<<ListboxSelect>>',purchaseListSelect)
 
@@ -947,18 +970,22 @@ status1.grid(row=9,column=0,columnspan=8,sticky="we",pady=10)
 purchase_info = Listbox(master=frame1,height=3,fg="red",font=('times new roman',14))
 purchase_info.grid(row=10,column=0,columnspan=8,sticky="we",ipadx=10,ipady=10)
 
-report_frame = ttk.Frame(master=frame1,borderwidth=6,border=5)
-report_frame.grid(row=0,column=9,rowspan=10,columnspan=2,sticky="n",padx=10)
+# report frame
 
-ttk.Label(master=report_frame,text="Report at Glance",font=('arial',24,"bold")).grid(row=1,column=0,sticky="nsew",padx=10,pady=20)
+report_frame = Frame(master=root,padx=10,pady=10,borderwidth=3,relief="groove")
+report_frame.grid(row=1,column=9,rowspan=10,columnspan=2,sticky="nsew",padx=10)
+rootLable = ttk.Label(master=report_frame,text="Welecome to Inventory Management System | Select from above options",font=("times new roman",20),anchor="center")
+rootLable.grid(row=0,column=0,sticky="we",columnspan=8)
+
+ttk.Label(master=report_frame,text="Report at Glance",font=('arial',24,"bold")).grid(row=2,column=0,sticky="nsew",padx=10,pady=20)
 unsold_box = ttk.Label(master=report_frame,text="Total Unsold Box = ",font=('arial',14))
-unsold_box.grid(row=6,column=0,columnspan=9,sticky="nsew",pady=5)
+unsold_box.grid(row=8,column=0,columnspan=9,sticky="nsew",pady=5)
 total_sold_box = ttk.Label(master=report_frame,text="Total Sold Box = ",font=('arial',14))
-total_sold_box.grid(row=7,column=0,sticky="w",pady=5)
+total_sold_box.grid(row=9,column=0,sticky="w",pady=5)
 pending_weight = ttk.Label(master=report_frame,text="Total Pending weight LOTS = ",font=('arial',14))
-pending_weight.grid(row=8,column=0,sticky="w",pady=5)
-report = Listbox(master=report_frame,height=6,font=('arial',14),relief="flat",width=45)
-report.grid(row=2,column=0,sticky="we")
+pending_weight.grid(row=10,column=0,sticky="w",pady=5)
+report = Listbox(master=report_frame,font=('arial',14),relief="flat",width=int(w*0.30),height=int(h*0.075))
+report.grid(row=3,column=0,sticky="we")
 getreport()
 report_refresh_btn = ttk.Button(master=report_frame,text="Refresh Report",command=getreport)
 report_refresh_btn.grid(row=9,column=0,ipadx=20,ipady=3,pady=10)
@@ -977,12 +1004,11 @@ idSales = IntVar()
 Label(frame2,text="All Sales | OR add Filters",font=("times new roman",16),anchor="w",bg="#696562",fg="white").grid(row=0,column=0,sticky="we",columnspan=10,pady=10,ipady=3,ipadx=5)
 
 
-sale_soldToNameLabelFilter = ttk.Label(master=frame2,text="Sold To Name")
+sale_soldToNameLabelFilter = ttk.Label(master=frame2,text="Sold To Name",anchor="center")
 sale_soldToNameLabelFilter.grid(row=1,column=0,sticky="NSEW")
 sale_soldToNameFilter = ttk.OptionMenu(frame2,sale_soldToNameVarFilter,defaultPartyOption,*partyNameOptions)
 clear_partyName_option()
 sale_soldToNameFilter.grid(row=2,column=0,sticky="WE",pady=10)
-
 
 sale_markingidPurchaseFilter = StringVar()
 sale_markingIdLabelFilter = ttk.Label(master=frame2,text="Marking Id")
@@ -1059,7 +1085,7 @@ deleteColdFacilityBtn.grid(row=2,column=2,sticky="WE",padx=15,ipadx=5)
 editColdFacilityBtn = ttk.Button(master=frame3,text="Edit Cold facility",command=editColdFacility)
 editColdFacilityBtn.grid(row=3,column=2,sticky="WE",padx=15)
 
-coldFacilityList = Listbox(master=frame3,height=7)
+coldFacilityList = Listbox(master=frame3,height=int(h*0.1)+3)
 coldFacilityList.grid(row=2,column=0,sticky="WE",columnspan=2,rowspan=5)
 coldFacilityList.bind('<<ListboxSelect>>',coldListSelect)
 
@@ -1067,7 +1093,7 @@ getColdFacility()
 
 status3 = ttk.Label(master=frame3,text="Status: ",anchor="w",font=('times new roman',12))
 status3.config(background='white',foreground='black')
-status3.grid(row=17,column=0,columnspan=5,sticky="we",pady=10)
+status3.grid(row=28,column=0,columnspan=5,sticky="we",pady=10)
 
 # label_text_head = "{:^15} | {:^25} | {:^15} | {:^10} | {:^15} | {:^10} | {:^25} | {:^10}"
 # label_text_head = label_text_head.format('Auction Date','Purchased From','Marking ID','BOX','Auction Rate','Weight','Sold To','Cold')
@@ -1077,21 +1103,22 @@ status3.grid(row=17,column=0,columnspan=5,sticky="we",pady=10)
 # all_coldFacility_data = Listbox(master=frame3,height=15,width=100,font=('times new roman',12),relief="groove")
 # all_coldFacility_data.grid(row=1,column=3,rowspan=14,sticky="we",ipadx=10,ipady=10)
 
-all_coldFacility_data = ttk.Treeview(frame3, selectmode ='browse')
-all_coldFacility_data.grid(row=1,column=3,rowspan=14,sticky='w',ipadx=20)
+all_coldFacility_data = ttk.Treeview(frame3, selectmode ='browse',height=int(h*0.1)+3)
+all_coldFacility_data.grid(row=1,column=3,rowspan=25,sticky='w',ipadx=20)
 
+all_coldFacility_data.tag_configure("custom",font=("Aerial",12))
 
 all_coldFacility_data["columns"] = ('1','2','3','4','5','6','7','8')
 
-all_coldFacility_data.column("#0", width= 40, anchor ='se')
-all_coldFacility_data.column("1", width = 90, anchor ='se')
-all_coldFacility_data.column("2", width = 100, anchor ='se')
-all_coldFacility_data.column("3", width = 80, anchor ='se')
-all_coldFacility_data.column("4", width = 50, anchor ='se')
-all_coldFacility_data.column("5", width = 80, anchor ='se')
-all_coldFacility_data.column("6", width = 70, anchor ='se')
-all_coldFacility_data.column("7", width = 90, anchor ='se')
-all_coldFacility_data.column("8", width = 50, anchor ='center')
+all_coldFacility_data.column("#0", width= 60, anchor ='w')
+all_coldFacility_data.column("1", width = 110, anchor ='w')
+all_coldFacility_data.column("2", width = 120, anchor ='w')
+all_coldFacility_data.column("3", width = 100, anchor ='w')
+all_coldFacility_data.column("4", width = 70, anchor ='w')
+all_coldFacility_data.column("5", width = 100, anchor ='w')
+all_coldFacility_data.column("6", width = 90, anchor ='w')
+all_coldFacility_data.column("7", width = 110, anchor ='w')
+all_coldFacility_data.column("8", width = 70, anchor ='center')
 
 all_coldFacility_data.heading("#0", text ="S.No")
 all_coldFacility_data.heading("1", text ="Auction Date")
@@ -1104,7 +1131,7 @@ all_coldFacility_data.heading("7", text ="Sold To")
 all_coldFacility_data.heading("8", text ="Cold")
 
 exportFile = ttk.Button(master=frame3,text="Export",command=convert_to_excel)
-exportFile.grid(row=16,column=3,sticky="E",pady=10)
+exportFile.grid(row=27,column=3,sticky="E",pady=10)
 
 
 # FRAME NO. 4==============================================================================
@@ -1136,7 +1163,7 @@ deletepartyNameBtn.grid(row=2,column=2,sticky="WE",padx=15,ipadx=5)
 editpartyNameBtn = ttk.Button(master=frame4,text="Edit Party",command=editpartyName)
 editpartyNameBtn.grid(row=3,column=2,sticky="WE",padx=15)
 
-partyNameList = Listbox(master=frame4,height=7)
+partyNameList = Listbox(master=frame4,height=int(h*0.1)+5)
 partyNameList.grid(row=2,column=0,sticky="WE",columnspan=2,rowspan=5)
 partyNameList.bind('<<ListboxSelect>>',partyListSelect)
 
@@ -1146,7 +1173,7 @@ status4 = ttk.Label(master=frame4,text="Status: ",anchor="w",font=('times new ro
 status4.config(background='white',foreground='black')
 status4.grid(row=17,column=0,columnspan=5,sticky="we",pady=10)
 
-all_partyName_data = Listbox(master=frame4,height=15,width=100,font=('times new roman',12),relief="groove")
+all_partyName_data = Listbox(master=frame4,height=int(h*0.1)+5,width=int(w*0.3)+10,font=('times new roman',12),relief="groove")
 all_partyName_data.grid(row=1,column=3,rowspan=15,sticky="we",ipadx=10,ipady=10)
 
 #==================================================================================================
