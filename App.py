@@ -1,16 +1,21 @@
 # from customtkinter import *
 from tkcalendar import DateEntry
-from tkinter import Menu,Tk,Label,Frame,IntVar,StringVar,DoubleVar,Listbox,END,Toplevel,Scrollbar,font
+from tkinter import Menu,Tk,Label,Frame,IntVar,StringVar,DoubleVar,Listbox,END,Toplevel,Scrollbar,font, _setit
 from models import *
 from tkinter import ttk
 from datetime import date
 import openpyxl
 from openpyxl.styles import PatternFill, Alignment
+from sqlalchemy import asc
+import random
+
 # import models
 # import win32print
 
-
+# height = 450
+# width = 600
 root = Tk()
+root.config(background='#ffffff')
 root.geometry("1000x800")
 root.state('zoomed')
 root.title("Inventory Management System")
@@ -26,24 +31,34 @@ root.config(menu=navbar)
 def purchase():
     hideAllFrame()
     frame1.grid(row=0,column=0,padx=10,pady=10,sticky="nsew")
+
 def sales():
     hideAllFrame()
     frame2.grid(row=0,column=0,padx=10,pady=10,sticky="nsew")
+
 def cold_facility():
     hideAllFrame()
     frame3.grid(row=0,column=0,padx=10,pady=10,sticky="nsew")
+
 def party_name():
     hideAllFrame()
     frame4.grid(row=0,column=0,padx=10,pady=10,sticky="nsew")
+
 def report_screen():
     hideAllFrame()
     report_frame.grid(row=0,column=0,padx=10,pady=10,sticky="nsew")
+
+def WeightPending():
+    hideAllFrame()
+    weight_frame.grid(row=0,column=0,padx=10,pady=10,sticky="nsew")
+
 def hideAllFrame():
     frame1.grid_remove()
     frame2.grid_remove()
     frame3.grid_remove()
     frame4.grid_remove()
     report_frame.grid_remove()
+    weight_frame.grid_remove()
     rootLable.grid_remove()
 
 navbar.add_command(label="Report",command=report_screen)
@@ -51,6 +66,7 @@ navbar.add_command(label="Purchase",command=purchase)
 navbar.add_command(label="Sales", command=sales)
 navbar.add_command(label="Cold Facility", command=cold_facility)
 navbar.add_command(label="Party Name", command=party_name)
+navbar.add_command(label="Pending Weight Lots", command=WeightPending)
 
 # End of Menu Tab Functions ==========================================
 
@@ -83,7 +99,7 @@ def getColdFacilityOptions():
 
 def getpartyNameOptions():
     global partyNameOptions
-    data = session.query(PartyName).all()
+    data = session.query(PartyName).order_by(asc(PartyName.Name)).all()
     for item in data:
         partyNameOptions.append(item)
 
@@ -106,20 +122,19 @@ def purchaseListSelect(event):
         datalist = text.split(sep=" | ")
         idPurchase=int(datalist[0].split(':')[1])
         idParty = int(datalist[2].split(':')[1])
-        idCold=int(datalist[8].split(':')[1])
-
+        idCold=datalist[8].split(':')[1]
         data = session.query(Purchase).filter(Purchase.id==idPurchase).first()
         data1 = session.query(PartyName).filter(PartyName.id==idParty).first()
-        
+        coldData = session.query(ColdFacility).filter(ColdFacility.id==idCold).first()
         if(data):
             clear_purchase_input()
             auctionDateEntry.set_date(data.AuctionDate)
-            firmNameVar.set(partyNameOptions[idParty])
+            firmNameVar.set(data1)
             markingIdEntry.insert(0,data.MarkingID)
             boxEntry.insert(0,data.Box)
             auctionRateEntry.insert(0,data.AuctionRate)
             weightEntry.insert(0,data.weight)
-            coldVar.set(coldFacilityOptions[idCold])
+            coldVar.set(coldData)
 
             addSalesbtn.config(state="normal")
 
@@ -147,15 +162,15 @@ def salesListSelect(event):
         data = session.query(Sell).filter(Sell.id==idSales).first()
         data1 = session.query(Purchase).filter(Purchase.id == data.purchase_id).first()
         data2 = session.query(PartyName).filter(PartyName.id == str(data.SellTo).split(' | ')[0]).first()
+        coldData = session.query(ColdFacility).filter(ColdFacility.id==data1.coldfacility_id).first()
         if(data):
             clear_sales_input()
-            print("==================================",data2)
             sale_soldToNameVarFilter.set(data2)
             sale_markingIdEntryFilter.insert(0,str(data.MarkingID))
             # sale_coldVarFilter.set(coldFacilityOptions[data1.coldfacility_id])
             d =""
             dd=""
-            c=str(coldFacilityOptions[data1.coldfacility_id]).split(' | ')[1]
+            c=coldData.Name if coldData else "Cold Facility not found"
             if(data.Dispatched):
                 d= ""
                 dd=data.DispatchDate
@@ -171,6 +186,59 @@ def salesListSelect(event):
     except:
         pass
 
+def getPendingWeight():
+    if True:
+        weight_pen = session.query(Purchase).filter(Purchase.weight < 1)        
+        if(weight_pen.count()>0):
+            # print(len(data.all()))
+            # for i in data.all():
+            #     print('data    ',i)
+            # all_coldFacility_data.delete(0,END)
+            weight_tree.delete(*weight_tree.get_children())
+            # all_coldFacility_data.insert(END,f"Total LOTS which Not Dispatched = {data.count()}")
+            ci=1
+            for i in weight_pen.all():
+                l = str(i).split(' | ')
+                partyId = l[2].split(':')[1] if (l[2] and len(l[2].split(':'))>1) else None
+                firmName = "No Name"
+                if partyId:
+                    pname = session.query(PartyName).filter(PartyName.id == partyId).first()
+                    if pname and pname.Name:
+                        firmName=pname.Name
+                # t_insert = "{:^15} | {:^25} | {:^15} | {:^10} | {:^15} | {:^10} | {:^25} | {:^10}"
+                # t_insert = t_insert.format(
+                #     l[1].split(':')[1],
+                #     pname.Name,l[3].split(':')[1],
+                #     l[12].split(': ')[1],
+                #     l[5].split(':')[1],
+                #     l[7].split(':')[1],
+                #     l[11],
+                #     idCold)
+                # all_coldFacility_data.insert(END,t_insert)
+
+                weight_tree.insert("", 'end', text =f"{ci}",
+                                             values =(
+                    l[1].split(':')[1] if (l[1] and len(l[1].split(':'))>1) else "None",
+                    firmName,
+                    l[3].split(':')[1] if (l[3] and len(l[3].split(':'))>1) else "None",
+                    l[4].split(':')[1] if (l[4] and len(l[4].split(':'))>1) else "None",
+                    l[5].split(':')[1] if (l[5] and len(l[5].split(':'))>1) else "None",
+                    l[6].split(':')[1] if (l[6] and len(l[6].split(':'))>1) else "None",
+                    l[7].split(':')[1] if (l[7] and len(l[7].split(':'))>1) else "None",
+                    l[8].split(':')[1] if (l[8] and len(l[8].split(':'))>1) else "None"
+                    ))
+                ci+=1                
+                # all_coldFacility_data.insert(END,item)
+        
+        # coldFacility_data_scrlbar = ttk.Scrollbar(frame3,orient ="vertical",command = all_coldFacility_data.yview)
+        # coldFacility_data_scrlbar.grid(row=1,column=4,rowspan=14,sticky="nsw")
+        # all_coldFacility_data.configure(yscrollcommand = coldFacility_data_scrlbar.set)
+
+
+    # except:
+    #     pass
+
+
 def coldListSelect(event):
     try:
         global idCold
@@ -184,7 +252,7 @@ def coldListSelect(event):
         coldFacilityEntry.insert(0,n)
         data = session.query(Purchase,Sell).filter(Purchase.id==Sell.purchase_id,
                                                    Sell.Dispatched==0,
-                                                   Purchase.coldfacility_id==int(id))
+                                                   Purchase.coldfacility_id==id)
         ci = 1
         if(data):
             # print(len(data.all()))
@@ -620,12 +688,14 @@ def addColdFacility():
         coldFacilityEntry.delete(0,END)
         getColdFacility()
         getColdFacilityOptions()
-        global coldbox,coldboxFilter,coldVar,coldVarFilter
-        coldbox = ttk.OptionMenu(frame1,coldVar,*coldFacilityOptions)
-        coldboxFilter = ttk.OptionMenu(frame1,coldVarFilter,*coldFacilityOptions)
+        # global coldbox,coldboxFilter,coldVar,coldVarFilter
+        # coldbox = ttk.OptionMenu(frame1,coldVar,*coldFacilityOptions)
+        # coldboxFilter = ttk.OptionMenu(frame1,coldVarFilter,*coldFacilityOptions)
         status3["text"] = "Status: Cold Facility Added successfully"
         status3.config(background='green',foreground='white')
         status3.after(3000,lambda:status3.config(text="Status:",background='white',foreground='black'))
+        coldbox['menu'].add_command(label=c, command=_setit(coldVar, c))
+        coldboxFilter['menu'].add_command(label=c, command=_setit(coldVarFilter, c))
 
 def deleteColdFacility():
     if(coldFacilityEntry != ""):
@@ -673,12 +743,20 @@ def addpartyName():
         partyNameEntry.delete(0,END)
         getpartyName()
         getpartyNameOptions()
-        global coldbox,coldboxFilter,coldVar,coldVarFilter
-        coldbox = ttk.OptionMenu(frame1,coldVar,*partyNameOptions)
-        coldboxFilter = ttk.OptionMenu(frame1,coldVarFilter,*partyNameOptions)
+        # global coldbox,coldboxFilter,coldVar,coldVarFilter
+        # coldbox = ttk.OptionMenu(frame1,coldVar,*partyNameOptions)
+        # coldboxFilter = ttk.OptionMenu(frame1,coldVarFilter,*partyNameOptions)
         status4["text"] = "Status: Party Name Added successfully"
         status4.config(background='green',foreground='white')
         status4.after(3000,lambda:status4.config(text="Status:",background='white',foreground='black'))
+        firmNameEntry['menu'].delete(0, 'end')
+        firmNameEntryFilter['menu'].delete(0, 'end')
+        sale_soldToNameFilter['menu'].delete(0, 'end')
+        data = session.query(PartyName).order_by(asc(PartyName.Name)).all()
+        for item in data:
+            firmNameEntry['menu'].add_command(label=item, command=_setit(firmNameVar, item))
+            firmNameEntryFilter['menu'].add_command(label=item, command=_setit(firmNameVarFilter, item))
+            sale_soldToNameFilter['menu'].add_command(label=item, command=_setit(sale_soldToNameVarFilter, item))
 
 def deletepartyName():
     if(partyNameEntry != ""):
@@ -722,6 +800,52 @@ def set_row_background_color(sheet, row_index, color):
     fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
     for cell in sheet[row_index]:
         cell.fill = fill
+
+def exportWeightData():
+    sheet_name = f"Pending_Weight_{random.randint(1,1000)}"
+    try:
+        workbook = openpyxl.Workbook()
+        workbook.active.title = sheet_name
+        
+        if sheet_name in workbook.sheetnames:
+            sheet = workbook[sheet_name]
+        else:
+            sheet = workbook.create_sheet(sheet_name)
+        sheet.append(["S.No","Auction Date","Purchased From","Marking ID","BOX","Auction Rate","Net Rate","Net weight","Cold Facility"])        
+
+        sheet.column_dimensions['A'].width = 6
+        sheet.column_dimensions['B'].width = 15
+        sheet.column_dimensions['C'].width = 30
+        sheet.column_dimensions['D'].width = 13
+        sheet.column_dimensions['E'].width = 10
+        sheet.column_dimensions['F'].width = 13
+        sheet.column_dimensions['G'].width = 13
+        sheet.column_dimensions['H'].width = 15
+        sheet.column_dimensions['I'].width = 10
+
+        all_data = weight_tree.get_children()
+        for i, item in enumerate(all_data):
+            values = weight_tree.item(item)["values"]
+            SNocell = sheet.cell(row=i+2, column=1)
+            SNocell.value = i+1
+            SNocell.alignment = Alignment(horizontal="left")
+
+            for j, value in enumerate(values):
+                cell = sheet.cell(row=i+2, column=j+2)
+                cell.value = value
+                cell.alignment = Alignment(horizontal="left")
+
+        set_row_background_color(sheet, 1, "FFFF00")
+        workbook.save(f"{sheet_name}_data.xlsx")
+        status_weight["text"] = f"Status: Data is exported in {sheet_name}_data.xlsx file."
+        status_weight.config(background='green',foreground='white')
+        status_weight.after(3000,lambda:status_weight.config(text="Status:",background='white',foreground='black'))
+
+    except PermissionError as e:
+        status3["text"] = f"Status: {sheet_name}_data.xlsx file is opened somewhere, close the file to export!"
+        status3.config(background='red',foreground='white')
+        status3.after(3000,lambda:status3.config(text="Status:",background='white',foreground='black'))
+
 
 def convert_to_excel():
     data = session.query(ColdFacility).filter(ColdFacility.id == idCold).first()
@@ -857,6 +981,7 @@ firmNameLabel.grid(row=1,column=1)
 
 
 getpartyNameOptions()
+
 firmNameEntry = ttk.OptionMenu(frame1,firmNameVar,defaultPartyOption,*partyNameOptions)
 clear_partyName_option()
 firmNameEntry.grid(row=2,column=1,padx=3)
@@ -877,7 +1002,6 @@ auctionRateEntry = ttk.Entry(master=frame1, textvariable=auctionRateVar)
 auctionRateEntry.grid(row=2,column=4,padx=3)
 
 def update_rateVar(*args):
-    print()
     rateVar.set(value=round(float(auctionRateVar.get())+2.5,1))
 
 rateLabel = ttk.Label(master=frame1,text="Rate")
@@ -990,6 +1114,47 @@ getreport()
 report_refresh_btn = ttk.Button(master=report_frame,text="Refresh Report",command=getreport)
 report_refresh_btn.grid(row=9,column=0,ipadx=20,ipady=3,pady=10)
 
+# Pending Weight Lots Report
+
+weight_frame = Frame(master=root,padx=10,pady=10,borderwidth=3,relief="groove")
+# weight_frame.grid(row=1,column=9,rowspan=10,columnspan=2,padx=10)
+
+
+ttk.Label(master=weight_frame,text="Pending Weight Lots",font=('arial',24,"bold")).grid(row=0,column=0,sticky="nsew",padx=10,pady=20)
+
+weight_tree = ttk.Treeview(weight_frame, selectmode ='browse',height=int(h*0.1)+3)
+weight_tree.grid(row=2,column=0,rowspan=20,columnspan=5,sticky='w',ipadx=20)
+
+weight_tree.tag_configure("custom",font=("Aerial",12))
+
+weight_tree["columns"] = ('1','2','3','4','5','6','7','8')
+
+weight_tree.column("#0", width= 60, anchor ='w')
+weight_tree.column("1", width = 140, anchor ='w')
+weight_tree.column("2", width = 200, anchor ='w')
+weight_tree.column("3", width = 120, anchor ='w')
+weight_tree.column("4", width = 80, anchor ='w')
+weight_tree.column("5", width = 120, anchor ='w')
+weight_tree.column("6", width = 100, anchor ='w')
+weight_tree.column("7", width = 90, anchor ='w')
+weight_tree.column("8", width = 80, anchor ='center')
+
+weight_tree.heading("#0", text ="S.No")
+weight_tree.heading("1", text ="Auction Date")
+weight_tree.heading("2", text ="Purchased From")
+weight_tree.heading("3", text ="Marking ID")
+weight_tree.heading("4", text ="BOX")
+weight_tree.heading("5", text ="Auction Rate")
+weight_tree.heading("6", text ="Net Rate")
+weight_tree.heading("7", text ="Weight")
+weight_tree.heading("8", text ="Cold")
+getPendingWeight()
+# weight_report.grid(row=3,column=0,sticky="we")
+export_weight_btn = ttk.Button(master=weight_frame,text="Export",command=exportWeightData)
+export_weight_btn.grid(row=22,column=5,ipadx=20,ipady=3,pady=10)
+status_weight = ttk.Label(master=weight_frame,text="Status: ",anchor="w",font=('times new roman',12))
+status_weight.config(background='white',foreground='black')
+status_weight.grid(row=22,column=0,columnspan=4,sticky="we",pady=10)
 
 
 
