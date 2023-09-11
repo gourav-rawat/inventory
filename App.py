@@ -1,6 +1,6 @@
 # from customtkinter import *
 from tkcalendar import DateEntry
-from tkinter import Menu,Tk,Label,Frame,IntVar,StringVar,DoubleVar,Listbox,END,Toplevel,Scrollbar,font, _setit
+from tkinter import Menu, MULTIPLE, SINGLE,Tk,Label,Frame,IntVar,StringVar,DoubleVar,Listbox,END,Toplevel,Scrollbar,font, _setit, messagebox
 from models import *
 from tkinter import ttk
 from datetime import date
@@ -8,6 +8,7 @@ import openpyxl
 from openpyxl.styles import PatternFill, Alignment
 from sqlalchemy import asc
 import random
+from ttkwidgets.autocomplete import AutocompleteCombobox
 
 # import models
 # import win32print
@@ -25,6 +26,7 @@ style = ttk.Style()
 
 navbar = Menu(root, font=('Arial', 20))
 root.config(menu=navbar)
+
 
 
 # Menu Tab Functions =============================================
@@ -69,7 +71,6 @@ navbar.add_command(label="Party Name", command=party_name)
 navbar.add_command(label="Pending Weight Lots", command=WeightPending)
 
 # End of Menu Tab Functions ==========================================
-
 # Trail screen================================================================
 
 # trail =14-int(str(date.today()).split("-")[2])
@@ -101,7 +102,7 @@ def getpartyNameOptions():
     global partyNameOptions
     data = session.query(PartyName).order_by(asc(PartyName.Name)).all()
     for item in data:
-        partyNameOptions.append(item)
+        partyNameOptions.append(str(item))
 
 def clear_partyName_option():
     global defaultPartyOption
@@ -187,7 +188,7 @@ def salesListSelect(event):
         pass
 
 def getPendingWeight():
-    if True:
+    try:
         weight_pen = session.query(Purchase).filter(Purchase.weight < 1)        
         if(weight_pen.count()>0):
             # print(len(data.all()))
@@ -215,9 +216,9 @@ def getPendingWeight():
                 #     l[11],
                 #     idCold)
                 # all_coldFacility_data.insert(END,t_insert)
-
                 weight_tree.insert("", 'end', text =f"{ci}",
                                              values =(
+                    l[0].split(':')[1] if (l[0] and len(l[0].split(':'))>1) else "None",
                     l[1].split(':')[1] if (l[1] and len(l[1].split(':'))>1) else "None",
                     firmName,
                     l[3].split(':')[1] if (l[3] and len(l[3].split(':'))>1) else "None",
@@ -235,8 +236,8 @@ def getPendingWeight():
         # all_coldFacility_data.configure(yscrollcommand = coldFacility_data_scrlbar.set)
 
 
-    # except:
-    #     pass
+    except:
+        pass
 
 
 def coldListSelect(event):
@@ -360,6 +361,194 @@ def partyListSelect(event):
     except:
         pass
 
+def clearPurchase():
+    auctionDateEntry.set_date(date.today())
+    clear_partyName_option()
+    markingIdEntry.delete(0,END)
+    boxEntry.delete(0,END)
+    auctionRateEntry.delete(0,END)
+    weightEntry.delete(0,END)
+    weightEntry.insert(0,"0.0")
+    clear_coldFacility_option()
+
+def clear_purchase_input():
+    clear_partyName_option()
+    markingIdEntry.delete(0,END)
+    boxEntry.delete(0,END)
+    auctionRateEntry.delete(0,END)
+    weightEntry.delete(0,END)
+    clear_coldFacility_option()
+
+def calculate_rate(auction_rate_var, rate_var):
+    try:
+        auction_rate = float(auction_rate_var.get())
+        rate = auction_rate + (0.025 * auction_rate)
+        rate_var.set(round(rate, 1))
+    except ValueError:
+        rate_var.set("Invalid Input")
+
+def add_multiple_purchases():
+    # Create a new dialog window
+    dialog = Toplevel(root)
+    dialog.title("Add Multiple Purchases")
+
+    # Create labels and entry fields for common details (auction date and firm)
+    ttk.Label(dialog, text="Auction Date:").grid(row=0, column=0)
+    auction_date_entry = DateEntry(dialog, selectmode = 'day', date_pattern="dd-mm-yyyy")
+    auction_date_entry.grid(row=0, column=1)
+    getpartyNameOptions()
+    ttk.Label(dialog, text="Firm Name:").grid(row=0, column=3)
+    firm_name_var = StringVar()
+    print(partyNameOptions)
+    firm_name_dropdown = AutocompleteCombobox(dialog, textvariable=firm_name_var, completevalues=partyNameOptions)
+    # firm_name_dropdown['values'] = ('Firm A', 'Firm B', 'Firm C')  # Replace with your firm names
+    firm_name_dropdown.grid(row=0, column=4)
+
+    # Create labels for purchase details
+    ttk.Label(dialog, text="Marking ID").grid(row=2, column=0)
+    ttk.Label(dialog, text="Box").grid(row=2, column=1)
+    ttk.Label(dialog, text="Auction Rate").grid(row=2, column=2)
+    ttk.Label(dialog, text="Rate").grid(row=2, column=3)
+    ttk.Label(dialog, text="Net Weight").grid(row=2, column=4)
+    ttk.Label(dialog, text="Cold Facility").grid(row=2, column=5)
+
+    # Button to delete the last added purchase row
+    def delete_purchase_row():
+        if purchase_rows:
+            last_row = purchase_rows.pop()
+            for widget in last_row:
+                try:
+                    widget.grid_remove()
+                except:
+                    pass
+
+            if not purchase_rows:
+                # Disable the delete button if there are no rows left
+                delete_button.config(state='disabled')
+
+    delete_button = ttk.Button(dialog, text="Delete Last Purchase", command=delete_purchase_row, state='disabled')
+    delete_button.grid(row=4, column=6)
+
+    # Function to add a new row for purchase details
+    def add_purchase_row():
+        common_auction_date = auction_date_entry.get()
+        common_firm_name = firm_name_var.get()
+
+        if not common_auction_date or not common_firm_name:
+            messagebox.showerror("Error", "First fill Auction Date and Firm Name.", parent=dialog)
+            return
+
+        marking_id_entry = ttk.Entry(dialog)
+        marking_id_entry.grid(row=3 + len(purchase_rows), column=0)
+        
+        box_entry = ttk.Entry(dialog)
+        box_entry.grid(row=3 + len(purchase_rows), column=1)
+
+        auction_rate_var = StringVar()
+        auction_rate_entry = ttk.Entry(dialog, textvariable=auction_rate_var)
+        auction_rate_entry.grid(row=3 + len(purchase_rows), column=2)
+        
+        net_weight_entry = ttk.Entry(dialog)
+        net_weight_entry.grid(row=3 + len(purchase_rows), column=4)
+
+        cold_facility_var = StringVar()
+        getColdFacilityOptions()
+        cold_facility_dropdown = ttk.OptionMenu(dialog,cold_facility_var,defaultColdFacilityOption,*coldFacilityOptions)
+        # cold_facility_dropdown = ttk.Combobox(dialog, textvariable=cold_facility_var)
+        # cold_facility_dropdown['values'] = ('Cold A', 'Cold B', 'Cold C')  # Replace with your cold facilities
+        cold_facility_dropdown.grid(row=3 + len(purchase_rows), column=5)
+
+        rate_var = StringVar()
+        rate_entry = ttk.Entry(dialog, textvariable=rate_var, state='readonly')
+        rate_entry.grid(row=3 + len(purchase_rows), column=3)
+
+        purchase_rows.append((marking_id_entry, box_entry, auction_rate_entry, rate_entry, rate_var, net_weight_entry, cold_facility_dropdown, cold_facility_var))
+
+        # Enable the delete button
+        delete_button.config(state='normal')
+
+    purchase_rows = []  # List to store dynamically added purchase rows
+
+    # Add the first row for purchase details
+    # add_purchase_row()
+
+    # Button to add more purchase rows
+    ttk.Button(dialog, text="Add Purchase", command=add_purchase_row).grid(row=3, column=6)
+
+
+
+    # Function to save the purchases to the database
+    def save_purchases():
+        common_auction_date = auction_date_entry.get()
+        common_firm_name = firm_name_var.get()
+
+        if not common_auction_date or not common_firm_name:
+            messagebox.showerror("Error", "Auction Date and Firm Name are required.", parent=dialog)
+            return
+
+        for i, (marking_id_entry, box_entry, auction_rate_entry, rate_entry, rate_var, net_weight_entry, cold_facility_dropdown, cold_facility_var) in enumerate(purchase_rows):
+            marking_id = marking_id_entry.get()
+            box = box_entry.get()
+            auction_rate = auction_rate_entry.get()
+            net_weight = net_weight_entry.get()
+            cold_facility = cold_facility_var.get()
+            rate = rate_entry.get()
+
+            if not marking_id or not box or not auction_rate or not net_weight or not cold_facility:
+                messagebox.showerror("Error", "All fields are required.", parent=dialog)
+                return
+
+            # Calculate the rate if auction_rate is valid
+            try:
+                auction_rate = float(auction_rate)
+                rate = auction_rate + (0.025 * auction_rate)
+                rate_var.set(round(rate, 1))
+            except ValueError:
+                rate_var.set("Invalid Input")
+
+            # Insert the purchase details into the database using common_auction_date, common_firm_name,
+            # marking_id, box, auction_rate, net_weight, cold_facility, and rate
+
+            # Example: You can use a database library like SQLite or any other database you prefer
+            # to insert the data into the database.
+
+            # After inserting, you can provide feedback to the user about the success of the operation.
+
+            # For simplicity, this example just prints the details to the console.
+            print(f"Purchase {i + 1}:")
+            print(f"Auction Date: {common_auction_date}")
+            print(f"Firm Name: {common_firm_name}")
+            print(f"Marking ID: {marking_id}")
+            print(f"Box: {box}")
+            print(f"Auction Rate: {auction_rate}")
+            print(f"Net Weight: {net_weight}")
+            print(f"Cold Facility: {cold_facility}")
+            print(f"Rate: {rate}")
+            print("\n")
+            try:
+                p = Purchase(AuctionDate=auction_date_entry.get_date(), 
+                        FirmName=int(common_firm_name.split(" ")[0]), 
+                        MarkingID=marking_id,
+                        Box=box,
+                        AuctionRate=float(auction_rate),
+                        Rate=float(rate),
+                        weight=float(net_weight),
+                        coldfacility_id = int(cold_facility.split(" ")[0]))
+                        
+                session.add(p)
+            except:
+                messagebox.showerror("Error", f"Error occured adding {i+1} row", parent=dialog)
+                pass
+
+        session.commit()
+        messagebox.showinfo("Success", "Added data", parent=dialog)
+        # Close the dialog after saving the purchases
+        getPurchase()
+        dialog.destroy()
+
+    # Button to save the purchases to the database
+    ttk.Button(dialog, text="Save Purchases", command=save_purchases).grid(row=5, column=6)
+
 def addPurchase():
     if(auctionDateEntry != "" and firmNameVar.get() != "" and markingidPurchase.get() != "" and auctionRateVar != 0):
         p = Purchase(AuctionDate=auctionDateEntry.get_date(), 
@@ -374,6 +563,7 @@ def addPurchase():
         session.add(p)
         session.commit()
         clearPurchase()
+        clear_purchase_input()
         getPurchase()
         status1["text"] = "Status: Product Added successfully"
         status1.config(background='green',foreground='white')
@@ -419,24 +609,6 @@ def deletePurchase():
             status1["text"] = "Status: Product deleted successfully"
             status1.config(background='green',foreground='white')
             status1.after(10000,lambda:status1.config(text="Status:",background='white',foreground='black'))
-
-def clearPurchase():
-    auctionDateEntry.set_date(date.today())
-    clear_partyName_option()
-    markingIdEntry.delete(0,END)
-    boxEntry.delete(0,END)
-    auctionRateEntry.delete(0,END)
-    weightEntry.delete(0,END)
-    weightEntry.insert(0,"0.0")
-    clear_coldFacility_option()
-
-def clear_purchase_input():
-    clear_partyName_option()
-    markingIdEntry.delete(0,END)
-    boxEntry.delete(0,END)
-    auctionRateEntry.delete(0,END)
-    weightEntry.delete(0,END)
-    clear_coldFacility_option()
     
 def clear_sales_input():
     clear_partyName_option()
@@ -450,7 +622,8 @@ def addSales():
     salesToNameVar = StringVar()
     salesToNameLabel = ttk.Label(popup,text="Sold To",anchor="w")
     salesToNameLabel.grid(row=0,column=0,padx=10,pady=10,sticky="w")
-    salesToNameEntry = ttk.OptionMenu(popup,salesToNameVar,defaultPartyOption,*partyNameOptions)
+    # salesToNameEntry = ttk.OptionMenu(popup,salesToNameVar,defaultPartyOption,*partyNameOptions)
+    salesToNameEntry =  AutocompleteCombobox(popup, textvariable=salesToNameVar, completevalues=partyNameOptions)
     salesToNameVar.set(defaultPartyOption)
     salesToNameEntry.grid(row=0,column=1,padx=10,pady=10)
 
@@ -490,6 +663,7 @@ def addSales():
     statusSalesTo.grid(row=3,column=0,sticky="we",pady=5,columnspan=3)
 
 def deleteSales():
+    print('ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss')
     data = session.query(Sell).filter(Sell.id == idSales).first()
     if(data):
         session.delete(data)
@@ -982,7 +1156,8 @@ firmNameLabel.grid(row=1,column=1)
 
 getpartyNameOptions()
 
-firmNameEntry = ttk.OptionMenu(frame1,firmNameVar,defaultPartyOption,*partyNameOptions)
+# firmNameEntry = ttk.OptionMenu(frame1,firmNameVar,defaultPartyOption,*partyNameOptions)
+firmNameEntry =  AutocompleteCombobox(frame1, textvariable=firmNameVar, completevalues=partyNameOptions)
 clear_partyName_option()
 firmNameEntry.grid(row=2,column=1,padx=3)
 
@@ -1002,7 +1177,8 @@ auctionRateEntry = ttk.Entry(master=frame1, textvariable=auctionRateVar)
 auctionRateEntry.grid(row=2,column=4,padx=3)
 
 def update_rateVar(*args):
-    rateVar.set(value=round(float(auctionRateVar.get())+2.5,1))
+    if auctionRateVar.get() !="":
+        rateVar.set(value=round(float(auctionRateVar.get())+(float(auctionRateVar.get())*0.025),1))
 
 rateLabel = ttk.Label(master=frame1,text="Rate")
 rateLabel.grid(row=1,column=5)
@@ -1024,6 +1200,10 @@ clear_coldFacility_option()
 coldbox.grid(row=2,column=7,padx=3,sticky="WE")
 
 # Buttons
+addmultiplePurchaseBtn = ttk.Button(master=frame1, text="Add Multiple Purchases", command=add_multiple_purchases)
+addmultiplePurchaseBtn.grid(row=3,column=5,sticky="WE",pady=10,padx=3)
+addmultiplePurchaseBtn = ttk.Button(master=frame1, text="Refresh", command=getPurchase)
+addmultiplePurchaseBtn.grid(row=3,column=6,sticky="WE",pady=10,padx=3)
 addPurchaseBtn = ttk.Button(master=frame1,text="Add Purchase",command=addPurchase)
 addPurchaseBtn.grid(row=3,column=1,sticky="WE",pady=10,padx=3)
 
@@ -1052,7 +1232,8 @@ auctionDateToEntryFilter.grid(row=6,column=1,sticky="WE",padx=3)
 
 firmNameLabelFilter = ttk.Label(master=frame1,text="Firm Name")
 firmNameLabelFilter.grid(row=5,column=2,padx=3)
-firmNameEntryFilter = ttk.OptionMenu(frame1,firmNameVarFilter,defaultPartyOption,*partyNameOptions)
+# firmNameEntryFilter = ttk.OptionMenu(frame1,firmNameVarFilter,defaultPartyOption,*partyNameOptions)
+firmNameEntryFilter =  AutocompleteCombobox(frame1, textvariable=firmNameVarFilter, completevalues=partyNameOptions)
 clear_partyName_option()
 firmNameEntry.grid(row=2,column=1,padx=3)
 firmNameEntryFilter.grid(row=6,column=2,padx=3)
@@ -1119,42 +1300,113 @@ report_refresh_btn.grid(row=9,column=0,ipadx=20,ipady=3,pady=10)
 weight_frame = Frame(master=root,padx=10,pady=10,borderwidth=3,relief="groove")
 # weight_frame.grid(row=1,column=9,rowspan=10,columnspan=2,padx=10)
 
+    
+def OnWeightSelect(event):
+    try:
+        index = weight_tree.selection()
+        selected_item = weight_tree.item(index)
+        item_values = selected_item["values"]
+
+        global updateIndex
+        updateIndex=item_values[0] 
+        update_weight_btn.config(state="normal")     
+
+    except:
+        pass
+
+def open_update_modal():
+    # Create a new dialog window
+        
+    update_dialog = Toplevel(weight_frame)
+    update_dialog.title("Update Slot")
+
+    if not updateIndex:
+        messagebox.showerror("error", "Please select a slot!", parent=update_dialog)
+        update_dialog.destroy()
+
+    ttk.Label(update_dialog, text="Slot ID").grid(row=0, column=0)
+    ttk.Label(update_dialog, text=updateIndex).grid(row=0, column=3)
+    ttk.Label(update_dialog, text="Weight:").grid(row=1, column=0)
+    update_net_weight_entry = ttk.Entry(update_dialog)
+    update_net_weight_entry.grid(row=2, column=0, columnspan=5, pady=10, padx=10)
+
+    getColdFacilityOptions()
+    ttk.Label(update_dialog, text="Cold Fasicility:").grid(row=1, column=6)
+
+    update_cold_facility_var = StringVar()
+    update_cold_facility_dropdown = ttk.OptionMenu(update_dialog,update_cold_facility_var,defaultColdFacilityOption,*coldFacilityOptions)
+    # cold_facility_dropdown = ttk.Combobox(dialog, textvariable=cold_facility_var)
+    # cold_facility_dropdown['values'] = ('Cold A', 'Cold B', 'Cold C')  # Replace with your cold facilities
+    update_cold_facility_dropdown.grid(row=2, column=5, columnspan=5, pady=10, padx=10)
+
+    def update_weight():
+
+        try:
+            data = session.query(Purchase).filter(Purchase.id == updateIndex).first()
+            if(data):
+                data.weight=update_net_weight_entry.get()
+                if len(update_cold_facility_var.get().split(" | "))>1:
+                    data.coldfacility_id=int(update_cold_facility_var.get().split(" | ")[0])
+                session.commit()
+                getPendingWeight()
+                messagebox.showinfo("info", "Data updated!", parent=update_dialog)
+            else:
+                messagebox.showerror("error", "Data not found!", parent=update_dialog)
+        except Exception as e:
+            messagebox.showerror("error", "Error occured, Try again!", parent=update_dialog)
+
+        finally:
+            update_weight_btn.config(state="disabled")   
+            update_dialog.destroy()
+        
+        
+        
+    ttk.Button(update_dialog, text="Update", command=update_weight).grid(row=3, column=6, pady=10, padx=10)
+
 
 ttk.Label(master=weight_frame,text="Pending Weight Lots",font=('arial',24,"bold")).grid(row=0,column=0,sticky="nsew",padx=10,pady=20)
 
 weight_tree = ttk.Treeview(weight_frame, selectmode ='browse',height=int(h*0.1)+3)
 weight_tree.grid(row=2,column=0,rowspan=20,columnspan=5,sticky='w',ipadx=20)
-
+weight_tree.bind("<<TreeviewSelect>>", OnWeightSelect)
 weight_tree.tag_configure("custom",font=("Aerial",12))
 
-weight_tree["columns"] = ('1','2','3','4','5','6','7','8')
+weight_tree["columns"] = ('1','2','3','4','5','6','7','8', '9')
 
 weight_tree.column("#0", width= 60, anchor ='w')
-weight_tree.column("1", width = 140, anchor ='w')
-weight_tree.column("2", width = 200, anchor ='w')
-weight_tree.column("3", width = 120, anchor ='w')
-weight_tree.column("4", width = 80, anchor ='w')
-weight_tree.column("5", width = 120, anchor ='w')
-weight_tree.column("6", width = 100, anchor ='w')
-weight_tree.column("7", width = 90, anchor ='w')
-weight_tree.column("8", width = 80, anchor ='center')
+weight_tree.column("1", width= 60, anchor ='w')
+weight_tree.column("2", width = 140, anchor ='w')
+weight_tree.column("3", width = 200, anchor ='w')
+weight_tree.column("4", width = 120, anchor ='w')
+weight_tree.column("5", width = 80, anchor ='w')
+weight_tree.column("6", width = 120, anchor ='w')
+weight_tree.column("7", width = 100, anchor ='w')
+weight_tree.column("8", width = 90, anchor ='w')
+weight_tree.column("9", width = 80, anchor ='center')
 
 weight_tree.heading("#0", text ="S.No")
-weight_tree.heading("1", text ="Auction Date")
-weight_tree.heading("2", text ="Purchased From")
-weight_tree.heading("3", text ="Marking ID")
-weight_tree.heading("4", text ="BOX")
-weight_tree.heading("5", text ="Auction Rate")
-weight_tree.heading("6", text ="Net Rate")
-weight_tree.heading("7", text ="Weight")
-weight_tree.heading("8", text ="Cold")
+weight_tree.heading("1", text ="ID")
+weight_tree.heading("2", text ="Auction Date")
+weight_tree.heading("3", text ="Purchased From")
+weight_tree.heading("4", text ="Marking ID")
+weight_tree.heading("5", text ="BOX")
+weight_tree.heading("6", text ="Auction Rate")
+weight_tree.heading("7", text ="Net Rate")
+weight_tree.heading("8", text ="Weight")
+weight_tree.heading("9", text ="Cold")
 getPendingWeight()
+# updateIndex = None
+
 # weight_report.grid(row=3,column=0,sticky="we")
+update_weight_btn = ttk.Button(master=weight_frame,text="Refresh",command=getPendingWeight)
+update_weight_btn.grid(row=22,column=3,ipadx=20,ipady=3,pady=10)
+update_weight_btn = ttk.Button(master=weight_frame,text="Update",command=open_update_modal, state="disabled")
+update_weight_btn.grid(row=22,column=4,ipadx=20,ipady=3,pady=10)
 export_weight_btn = ttk.Button(master=weight_frame,text="Export",command=exportWeightData)
 export_weight_btn.grid(row=22,column=5,ipadx=20,ipady=3,pady=10)
 status_weight = ttk.Label(master=weight_frame,text="Status: ",anchor="w",font=('times new roman',12))
 status_weight.config(background='white',foreground='black')
-status_weight.grid(row=22,column=0,columnspan=4,sticky="we",pady=10)
+status_weight.grid(row=22,column=0,columnspan=3,sticky="we",pady=10)
 
 
 
@@ -1171,7 +1423,8 @@ Label(frame2,text="All Sales | OR add Filters",font=("times new roman",16),ancho
 
 sale_soldToNameLabelFilter = ttk.Label(master=frame2,text="Sold To Name",anchor="center")
 sale_soldToNameLabelFilter.grid(row=1,column=0,sticky="NSEW")
-sale_soldToNameFilter = ttk.OptionMenu(frame2,sale_soldToNameVarFilter,defaultPartyOption,*partyNameOptions)
+# sale_soldToNameFilter = ttk.OptionMenu(frame2,sale_soldToNameVarFilter,defaultPartyOption,*partyNameOptions)
+sale_soldToNameFilter =  AutocompleteCombobox(frame2, textvariable=sale_soldToNameVarFilter, completevalues=partyNameOptions)
 clear_partyName_option()
 sale_soldToNameFilter.grid(row=2,column=0,sticky="WE",pady=10)
 
@@ -1204,6 +1457,69 @@ salesList.bind('<<ListboxSelect>>',salesListSelect)
 
 getSales()
 
+
+def dispatchedSalesMultiple():
+    popup=Toplevel(master=frame2,padx=30,pady=30)
+    popup.title("Add Dispached Info")
+    # data = session.query(Sell).filter(Sell.id==idSales).first()
+
+    sale_dispatched_info_var = IntVar()
+    sale_dispatched_info_Entry = ttk.Checkbutton(popup,text="Dispatched",variable=sale_dispatched_info_var)
+    sale_dispatched_info_Entry.grid(row=0,column=0,pady=10,sticky="w")
+
+
+    sale_dispatched_date_Label = ttk.Label(popup,text="Dispatched Date",anchor="w")
+    sale_dispatched_date_Label.grid(row=1,column=0,pady=10,sticky="w")
+    sale_dispatched_date_Entry = DateEntry(popup, selectmode = 'day', date_pattern="dd-mm-yyyy",state="disabled")
+    sale_dispatched_date_Entry.grid(row=1,column=1,padx=10,pady=10)
+
+    if(sale_dispatched_info_var):
+        sale_dispatched_date_Entry.config(state="normal")
+
+    def addDispatched():
+        salesItems = salesList.curselection()
+        for index in salesItems:
+            text = str(salesList.get(index))
+            datalist = text.split(sep=" | ")
+            idSalesSelect=int(datalist[0].split(': ')[1])
+            data = session.query(Sell).filter(Sell.id==idSalesSelect).first()
+            if(sale_dispatched_info_var):
+                data.Dispatched = sale_dispatched_info_var.get()
+                data.DispatchDate = sale_dispatched_date_Entry.get_date()
+        session.commit()
+        status_sale_dispatched["text"] = "Status: Dispatched Added Successfully"
+        status_sale_dispatched.config(background='green',foreground='white')
+        status_sale_dispatched.after(10000,lambda:status_sale_dispatched.config(text="Status:",background='white',foreground='black'))
+
+    sale_dispatched_btn = ttk.Button(popup,text="Update Dispatched Status",command=addDispatched)
+    sale_dispatched_btn.grid(row=2,column=0,pady=20,sticky="w")
+
+    status_sale_dispatched = ttk.Label(popup,text="Status: ",anchor="w")
+    status_sale_dispatched.config(background='white',foreground='black')
+    status_sale_dispatched.grid(row=3,column=0,sticky="we",pady=5,columnspan=3)
+
+
+def deleteSalesMultiple():
+    try:
+        salesItems = salesList.curselection()
+        for index in salesItems:
+            text = str(salesList.get(index))
+            datalist = text.split(sep=" | ")
+            idSalesSelect=int(datalist[0].split(': ')[1])
+            data = session.query(Sell).filter(Sell.id == idSalesSelect).first()
+            if(data):
+                session.delete(data)
+            else:
+                messagebox.showerror("error", "Data not found", parent=frame2)
+        session.commit()
+        getSales()
+        sale_status["text"] = "Status: Sales deleted successfully"
+        sale_status.config(background='green',foreground='white')
+        sale_status.after(10000,lambda:sale_status.config(text="Status:",background='white',foreground='black'))
+    except:
+        messagebox.showerror("error", "Error, Try again!", parent=frame2)
+
+
 sale_deleteBtn=ttk.Button(master=frame2,text="Delete Sale",command=deleteSales)
 sale_deleteBtn.grid(row=4,column=0,pady=15,sticky="WE",padx=5)
 
@@ -1212,6 +1528,25 @@ sale_deleteBtn.grid(row=4,column=0,pady=15,sticky="WE",padx=5)
 
 sale_dispatchedBtn=ttk.Button(master=frame2,text="Enter Dispached INFO",command=dispatchedSales)
 sale_dispatchedBtn.grid(row=4,column=1,sticky="WE",padx=30)
+
+sale_refreshbtn=ttk.Button(master=frame2,text="Refresh",command=getSales)
+sale_refreshbtn.grid(row=4,column=2,pady=15,sticky="WE",padx=5)
+
+def changeSalesMultiple():
+    salesList.config(selectmode=MULTIPLE)
+    sale_deleteBtn.config(command=deleteSalesMultiple)
+    sale_dispatchedBtn.config(command=dispatchedSalesMultiple)
+
+def changeSalesSingle():
+    salesList.config(selectmode=SINGLE)
+    sale_deleteBtn.config(command=deleteSales)
+    sale_dispatchedBtn.config(command=dispatchedSales)
+
+sale_multiplebtn=ttk.Button(master=frame2,text="Select Multiple",command=changeSalesMultiple)
+sale_multiplebtn.grid(row=4,column=3,pady=15,sticky="WE",padx=5)
+
+sale_singlebtn=ttk.Button(master=frame2,text="Select Single",command=changeSalesSingle)
+sale_singlebtn.grid(row=4,column=4,pady=15,sticky="WE",padx=5)
 
 sale_status = ttk.Label(master=frame2,text="Status: ",anchor="w",font=('times new roman',12))
 sale_status.config(background='white',foreground='black')
